@@ -33,8 +33,8 @@ var (
 // log entries. It also provides key/value storage, and can be used as
 // a LogStore and StableStore.
 type BadgerStore struct {
-	// conn is the underlying handle to the db.
-	conn *badger.DB
+	// Conn is the underlying handle to the db.
+	Conn *badger.DB
 
 	// The path to the Badger database directory.
 	path string
@@ -106,7 +106,7 @@ func New(options Options) (*BadgerStore, error) {
 
 	// Create the new store
 	store := &BadgerStore{
-		conn: handle,
+		Conn: handle,
 		path: options.Path,
 	}
 
@@ -170,7 +170,7 @@ func (b *BadgerStore) Close() error {
 	if b.mandatoryVlogTicker != nil {
 		b.mandatoryVlogTicker.Stop()
 	}
-	return b.conn.Close()
+	return b.Conn.Close()
 }
 
 // FirstIndex returns the first known index from the Raft log.
@@ -185,7 +185,7 @@ func (b *BadgerStore) LastIndex() (uint64, error) {
 
 func (b *BadgerStore) firstIndex(reverse bool) (uint64, error) {
 	var value uint64
-	err := b.conn.View(func(txn *badger.Txn) error {
+	err := b.Conn.View(func(txn *badger.Txn) error {
 		it := txn.NewIterator(badger.IteratorOptions{
 			PrefetchValues: false,
 			Reverse:        reverse,
@@ -206,7 +206,7 @@ func (b *BadgerStore) firstIndex(reverse bool) (uint64, error) {
 
 // GetLog gets a log entry from Badger at a given index.
 func (b *BadgerStore) GetLog(index uint64, log *raft.Log) error {
-	return b.conn.View(func(txn *badger.Txn) error {
+	return b.Conn.View(func(txn *badger.Txn) error {
 		item, err := txn.Get(uint64ToBytes(index))
 		if err != nil {
 			switch err {
@@ -230,14 +230,14 @@ func (b *BadgerStore) StoreLog(log *raft.Log) error {
 	if err != nil {
 		return err
 	}
-	return b.conn.Update(func(txn *badger.Txn) error {
+	return b.Conn.Update(func(txn *badger.Txn) error {
 		return txn.Set(uint64ToBytes(log.Index), val.Bytes())
 	})
 }
 
 // StoreLogs stores a set of raft logs.
 func (b *BadgerStore) StoreLogs(logs []*raft.Log) error {
-	return b.conn.Update(func(txn *badger.Txn) error {
+	return b.Conn.Update(func(txn *badger.Txn) error {
 		for _, log := range logs {
 			key := uint64ToBytes(log.Index)
 			val, err := encodeMsgPack(log)
@@ -255,7 +255,7 @@ func (b *BadgerStore) StoreLogs(logs []*raft.Log) error {
 // DeleteRange deletes logs within a given range inclusively.
 func (b *BadgerStore) DeleteRange(min, max uint64) error {
 	// we manage the transaction manually in order to avoid ErrTxnTooBig errors
-	txn := b.conn.NewTransaction(true)
+	txn := b.Conn.NewTransaction(true)
 	it := txn.NewIterator(badger.IteratorOptions{
 		PrefetchValues: false,
 		Reverse:        false,
@@ -291,7 +291,7 @@ func (b *BadgerStore) DeleteRange(min, max uint64) error {
 
 // Set is used to set a key/value set outside of the raft log.
 func (b *BadgerStore) Set(key []byte, val []byte) error {
-	return b.conn.Update(func(txn *badger.Txn) error {
+	return b.Conn.Update(func(txn *badger.Txn) error {
 		return txn.Set(key, val)
 	})
 }
@@ -299,7 +299,7 @@ func (b *BadgerStore) Set(key []byte, val []byte) error {
 // Get is used to retrieve a value from the k/v store by key
 func (b *BadgerStore) Get(key []byte) ([]byte, error) {
 	var value []byte
-	err := b.conn.View(func(txn *badger.Txn) error {
+	err := b.Conn.View(func(txn *badger.Txn) error {
 		item, err := txn.Get(key)
 		if err != nil {
 			switch err {
