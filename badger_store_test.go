@@ -25,9 +25,11 @@ import (
 
 	"github.com/dgraph-io/badger"
 	"github.com/hashicorp/raft"
+	"github.com/sirupsen/logrus"
 )
 
 func testBadgerStore(t testing.TB) (*BadgerStore, string) {
+	logrus.Info("Starting: testBadgerStore")
 	path, err := ioutil.TempDir("", "raftbadger")
 	if err != nil {
 		t.Fatalf("err. %s", err)
@@ -40,6 +42,7 @@ func testBadgerStore(t testing.TB) (*BadgerStore, string) {
 		t.Fatalf("err: %s", err)
 	}
 
+	logrus.Info("Ending: testBadgerStore")
 	return store, path
 }
 
@@ -61,6 +64,7 @@ func TestBadgerStore_Implements(t *testing.T) {
 }
 
 func TestBadgerOptionsReadOnly(t *testing.T) {
+	logrus.Info("Starting: TestBadgerOptionsReadOnly")
 	store, path := testBadgerStore(t)
 	// Create the log
 	log := &raft.Log{
@@ -73,7 +77,7 @@ func TestBadgerOptionsReadOnly(t *testing.T) {
 	}
 	store.Close()
 
-	defaultOpts := badger.DefaultOptions
+	defaultOpts := badger.DefaultOptions(path)
 	options := Options{
 		Path:          path,
 		BadgerOptions: &defaultOpts,
@@ -100,9 +104,11 @@ func TestBadgerOptionsReadOnly(t *testing.T) {
 	if err != badger.ErrReadOnlyTxn {
 		t.Errorf("expecting error %v, but got %v", badger.ErrReadOnlyTxn, err)
 	}
+	logrus.Info("Ending: TestBadgerOptionsReadOnly")
 }
 
 func TestNewBadgerStore(t *testing.T) {
+	logrus.Info("Starting: TestNewBadgerStore")
 	store, path := testBadgerStore(t)
 
 	// Ensure the directory was created
@@ -119,20 +125,19 @@ func TestNewBadgerStore(t *testing.T) {
 	}
 
 	// Ensure our files were created
-	opts := badger.DefaultOptions
-	opts.Dir = path
-	opts.ValueDir = path
+	opts := badger.DefaultOptions(path)
 	db, err := badger.Open(opts)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
 	db.Close()
+	logrus.Info("Ending: TestNewBadgerStore")
 }
 
 func TestBadgerStore_FirstIndex(t *testing.T) {
-	store, path := testBadgerStore(t)
+	logrus.Info("Starting: TestBadgerStore_FirstIndex")
+	store, _ := testBadgerStore(t)
 	defer store.Close()
-	defer os.RemoveAll(path)
 
 	// Should get 0 index on empty log
 	idx, err := store.FirstIndex()
@@ -161,12 +166,13 @@ func TestBadgerStore_FirstIndex(t *testing.T) {
 	if idx != 1 {
 		t.Fatalf("bad index: %d", idx)
 	}
+	logrus.Info("Ending: TestBadgerStore_FirstIndex")
 }
 
 func TestBadgerStore_LastIndex(t *testing.T) {
-	store, path := testBadgerStore(t)
+	logrus.Info("Starting: TestBadgerStore_LastIndex")
+	store, _ := testBadgerStore(t)
 	defer store.Close()
-	defer os.RemoveAll(path)
 
 	// Should get 0 index on empty log
 	idx, err := store.LastIndex()
@@ -195,12 +201,13 @@ func TestBadgerStore_LastIndex(t *testing.T) {
 	if idx != 3 {
 		t.Fatalf("bad index: %d", idx)
 	}
+	logrus.Info("Ending: TestBadgerStore_LastIndex")
 }
 
 func TestBadgerStore_GetLog(t *testing.T) {
-	store, path := testBadgerStore(t)
+	logrus.Info("Starting: TestBadgerStore_GetLog")
+	store, _ := testBadgerStore(t)
 	defer store.Close()
-	defer os.RemoveAll(path)
 
 	log := new(raft.Log)
 
@@ -226,9 +233,11 @@ func TestBadgerStore_GetLog(t *testing.T) {
 	if !reflect.DeepEqual(log, logs[1]) {
 		t.Fatalf("bad: %#v", log)
 	}
+	logrus.Info("Ending: TestBadgerStore_GetLog")
 }
 
 func TestBadgerStore_SetLog(t *testing.T) {
+	logrus.Info("Starting: TestBadgerStore_SetLog")
 	store, path := testBadgerStore(t)
 	defer store.Close()
 	defer os.Remove(path)
@@ -254,9 +263,11 @@ func TestBadgerStore_SetLog(t *testing.T) {
 	if !reflect.DeepEqual(log, result) {
 		t.Fatalf("bad: %v", result)
 	}
+	logrus.Info("Ending: TestBadgerStore_SetLog")
 }
 
 func TestBadgerStore_SetLogs(t *testing.T) {
+	logrus.Info("Starting: TestBadgerStore_SetLogs")
 	store, path := testBadgerStore(t)
 	defer store.Close()
 	defer os.Remove(path)
@@ -286,9 +297,11 @@ func TestBadgerStore_SetLogs(t *testing.T) {
 	if !reflect.DeepEqual(logs[1], result2) {
 		t.Fatalf("bad: %#v", result2)
 	}
+	logrus.Info("Ending: TestBadgerStore_SetLogs")
 }
 
 func TestBadgerStore_DeleteRange(t *testing.T) {
+	logrus.Info("Starting: TestBadgerStore_DeleteRange")
 	store, path := testBadgerStore(t)
 	defer store.Close()
 	defer os.Remove(path)
@@ -316,9 +329,11 @@ func TestBadgerStore_DeleteRange(t *testing.T) {
 	if err := store.GetLog(2, new(raft.Log)); err != raft.ErrLogNotFound {
 		t.Fatalf("should have deleted log2")
 	}
+	logrus.Info("Ending: TestBadgerStore_DeleteRange")
 }
 
 func TestBadgerStore_Set_Get(t *testing.T) {
+	logrus.Info("Starting: TestBadgerStore_Set_Get")
 	store, path := testBadgerStore(t)
 	defer store.Close()
 	defer os.Remove(path)
@@ -343,9 +358,11 @@ func TestBadgerStore_Set_Get(t *testing.T) {
 	if !bytes.Equal(val, v) {
 		t.Fatalf("bad: %v", val)
 	}
+	logrus.Info("Ending: TestBadgerStore_Set_Get")
 }
 
 func TestBadgerStore_SetUint64_GetUint64(t *testing.T) {
+	logrus.Info("Starting: TestBadgerStore_SetUint64_GetUint64")
 	store, path := testBadgerStore(t)
 	defer store.Close()
 	defer os.Remove(path)
@@ -370,4 +387,5 @@ func TestBadgerStore_SetUint64_GetUint64(t *testing.T) {
 	if val != v {
 		t.Fatalf("bad: %v", val)
 	}
+	logrus.Info("Ending: TestBadgerStore_SetUint64_GetUint64")
 }

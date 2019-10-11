@@ -91,11 +91,9 @@ func New(options Options) (*BadgerStore, error) {
 
 	// build badger options
 	if options.BadgerOptions == nil {
-		defaultOpts := badger.DefaultOptions
+		defaultOpts := badger.DefaultOptions(options.Path)
 		options.BadgerOptions = &defaultOpts
 	}
-	options.BadgerOptions.Dir = options.Path
-	options.BadgerOptions.ValueDir = options.Path
 	options.BadgerOptions.SyncWrites = !options.NoSync
 
 	// Try to connect
@@ -216,11 +214,15 @@ func (b *BadgerStore) GetLog(index uint64, log *raft.Log) error {
 				return err
 			}
 		}
-		val, err := item.Value()
+		var valCopy []byte
+		err = item.Value(func(val []byte) error {
+			valCopy = append([]byte{}, val...)
+			return nil
+		})
 		if err != nil {
 			return err
 		}
-		return decodeMsgPack(val, log)
+		return decodeMsgPack(valCopy, log)
 	})
 }
 
@@ -272,7 +274,7 @@ func (b *BadgerStore) DeleteRange(min, max uint64) error {
 		if err := txn.Delete(key); err != nil {
 			if err == badger.ErrTxnTooBig {
 				it.Close()
-				err = txn.Commit(nil)
+				err = txn.Commit()
 				if err != nil {
 					return err
 				}
@@ -282,7 +284,7 @@ func (b *BadgerStore) DeleteRange(min, max uint64) error {
 		}
 	}
 	it.Close()
-	err := txn.Commit(nil)
+	err := txn.Commit()
 	if err != nil {
 		return err
 	}
